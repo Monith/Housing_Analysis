@@ -1,0 +1,102 @@
+install.packages("xtable")
+library(xtable)
+newobject<-xtable(table ( housing$county , sale_years ))
+
+sale_years <- cut(housing$date,'year')
+table ( housing$county , sale_years )
+print.xtable(newobject, type="html", file="table1.html")
+
+library(lattice)
+
+price_per_bsqft <- with ( housing , price / bsqft )
+high_cost <- subset (housing,price_per_bsqft > 3000)
+table2<- high_cost [ order ( high_cost$price , decreasing = TRUE ) , ]
+head(table2)
+table2 <- table2[1:10,c('price','street','city','county')]
+table2 <- xtable(table2)
+
+print.xtable(table2, type="html", file="table2.html")
+             
+
+#Get table of sales by county and year.
+tt = with(housing, table(county, as.POSIXlt(date)$year) + 1900))
+
+png('SalesByCountyYr.png',8,8,units = 'in',res=300)
+#Plot without the x-axis, so that a custom axis can be added.
+matplot(tt, type = 'l', xaxt = 'n',xlab = 'County',
+        ylab = 'Number of Houses Sold',
+        main = 'Sales By County and Year')
+
+#Make labels and add them on the x-axis
+xlabs <- rownames(tt)
+xlabs <- substring(xlabs,1,nchar(xlabs) - 7)
+axis(1,1:nrow(tt),xlabs,cex.axis = .6)
+
+#Add a Legend
+legend('top',colnames(tt),col = 1:6,lty = 1:5)
+dev.off()
+
+#Number of houses sold by month
+housing$month <- cut(housing$date,'month')
+tt <- table(housing$month, housing$county)
+
+png('NumHousesMonthByCounty.png',8,8,units = 'in',res=300)
+matplot(tt, type = 'l', col=palette,lty=1:4, xaxt = 'n',
+        xlab = 'Month',ylab='Number Of Houses Sold',
+        main = 'Number Of Houses Sold by Month in Each County')
+
+# Add months on the x-axis
+month_labels <- format.Date(rownames(tt), '%Y-%m')
+ticks <- seq(1,length(month_labels),3)
+axis(1,ticks,month_labels[ticks])
+
+#AddLegend
+legend('topleft', gsub('County','',colnames(tt)), col = palette,
+       lty = 1:4, title = 'County', cex=.7)
+dev.off()
+
+
+
+head(housing$month)
+
+
+#color coded map of the counties by average price
+#get teh average price per county
+avg_price <- tapply(housing$price,housing$county,mean,
+                    na.rm = TRUE)
+#save teh county names
+counties <- names(avg_price)
+
+#categorize the counties based on average price
+category_labels <- c('Low','Medium','High')
+avg_price <- cut(avg_price,3,labels=category_labels)
+names(avg_price) <- counties
+
+#Match each category to a color.
+palette <- brewer.pal(3, 'Reds')
+
+#Format the county names to match map regions, and also format
+#some labels to put on the map
+
+county_labels <- substring(counties,1,nchar(counties)-7)
+county_regions <- paste0('California,',county_labels)
+
+#plot the map
+library(maps)
+
+png('AvgPriceMap.png',8,8, units = 'in', res = 300)
+map('county',county_regions,col = palette[avg_price],
+    fill = TRUE, myborder = c(.1,0))
+
+#Add cuonty names to the map. Handle San Francsico separately,
+#since its a very small county.
+map.text('county',county_regions[-5],labels = county_labels[-5],
+         cex = .7, add = TRUE)
+text(-122.7865,37.7259, 'San Francisco', cex = .7)
+lines(c(-122.63,-122.5),c(37.725,37.74))
+
+#Add a title and legend.
+title('Average Price By County')
+legend('bottomleft',legend = category_labels,fill = palette,
+       title = 'Average Price by County')
+dev.off()
